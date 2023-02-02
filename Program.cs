@@ -36,10 +36,38 @@ public class Program
 
         Console.WriteLine(top.CurrentName);
         Console.WriteLine("---");
-        WalkEnabledElements(top);
+        var found = FindAllElementsUnder(top);
 
         stopWatch.Stop();
         Console.WriteLine($"Ellapsed time: {stopWatch.Elapsed}");
+
+        found.Sort((a, b) => CompareElements(a, b));
+        foreach (var item in found)
+        {
+            var name = item.Item1;
+            var rect = item.Item2;
+
+            var x1 = rect.left;
+            var y1 = rect.top;
+            var x2 = rect.right;
+            var y2 = rect.bottom;
+            Console.WriteLine($"[{x1},{y1},{x2},{y2}] '{name}'");
+        }
+    }
+
+    private int CompareElements(Tuple<string, tagRECT> a, Tuple<string, tagRECT> b)
+    {
+        var r1 = a.Item2;
+        var r2 = b.Item2;
+        if (r1.top < r2.top) return -1;
+        if (r1.top > r2.top) return 1;
+        if (r1.left < r2.left) return -1;
+        if (r1.left > r2.left) return 1;
+        if (r1.right < r2.right) return -1;
+        if (r1.right > r2.right) return 1;
+        if (r1.bottom < r2.bottom) return -1;
+        if (r1.bottom > r2.bottom) return 1;
+        return 0;
     }
 
     IUIAutomationElement GetTopElement(IUIAutomationElement node)
@@ -59,20 +87,22 @@ public class Program
         return node;
     }
 
-    private void WalkEnabledElements(IUIAutomationElement node, int level = 0)
+    private List<Tuple<string,tagRECT>> FindAllElementsUnder(IUIAutomationElement node)
     {
-        // UIA_CONTROLTYPE_ID.UIA_DocumentControlTypeId;
+        var elements = new List<Tuple<string, tagRECT>>();
+        FindAllElementsUnder(node, ref elements);
+        return elements;
+    }
 
-        //var condition1 = _automation.CreatePropertyCondition((int)UIA_PROPERTY_ID.UIA_IsControlElementPropertyId, true);
-        var condition2 = _automation.CreatePropertyCondition((int)UIA_PROPERTY_ID.UIA_IsEnabledPropertyId, true);
-        //var andCondition = _automation.CreateAndCondition(condition1, condition2);
-        var walker = _automation.CreateTreeWalker(condition2);
+    private void FindAllElementsUnder(IUIAutomationElement node, ref List<Tuple<string, tagRECT>> elements)
+    {
+        var condition = _automation.CreatePropertyCondition((int)UIA_PROPERTY_ID.UIA_IsEnabledPropertyId, true);
+        var walker = _automation.CreateTreeWalker(condition);
 
-        var indent = new string(' ', level * 2);
         for (var child = walker.GetFirstChildElement(node); child != null; child = walker.GetNextSiblingElement(child))
         {
-            Console.WriteLine($"{indent} {child.CurrentName}\n{indent} (type={child.CurrentControlType})");
-            WalkEnabledElements(child, level + 1);
+            elements.Add(new Tuple<string, tagRECT>(child.CurrentName, child.CurrentBoundingRectangle));
+            FindAllElementsUnder(child, ref elements);
         }
     }
 
